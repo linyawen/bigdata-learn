@@ -27,7 +27,7 @@ sh stop-dfs.sh
 
 ## node2~node4基础环境准备
 
-新建另外3台虚拟机(node2~node4) ，参考node1，进行基础设施的设置好 ip，主机名，关闭防火墙和 selinux，时间同步
+新建另外3台虚拟机(node2~node4) ，参考node1，进行基础设施的设置好 ip，主机名，关闭防火墙和 selinux，时间同步, 安装jdk， JAVA_HOME、HADOOP_HOME等。
 
 | host  | ip            |
 | ----- | ------------- |
