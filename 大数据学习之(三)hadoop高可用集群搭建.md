@@ -1,10 +1,10 @@
 
 
-# HDFS - HA高可用解决方案-简介
+# HDFS - HA高可用-简介
 
 接上一篇文章 "大数据学习之(二)hadoop完全分布式部署"，虽然说已经搭建了完全分布式集群，但是NameNode 却是单点的，一旦故障整个集群都不能访问，而且单节点内存压力也大，现在进行高可用HA 改造。
 
-官方架构图如下：
+## 官方架构图
 
 ![hdfs-ha_0](https://s2.loli.net/2022/04/10/b3sB4kOPUdx5CXG.png)
 
@@ -118,6 +118,251 @@ vi /etc/profile
 source /etc/profile
 ```
 
+### 3.4启动zk集群
+
+依次在node2,3,4中执行
+
+```
+zkServer.sh start
+```
+
+ps: 一般情况下，server.2 (node3)为leader，因为启动到node3时刚好过半，可以选主了。
+
+## 4.修改hadoop配置文件
+
+进行HA 集群改造的响应配置修改，关键词：zk，failoverController，journalNode
+
+### 4.1 vi core-site.xml
+
+```
+<configuration>
+        <property>
+                <name>fs.defaultFS</name>
+                <value>hdfs://mycluster</value>
+        </property>
+        <property>
+           <name>ha.zookeeper.quorum</name>
+           <value>node2:2181,node3:2181,node4:2181</value>
+         </property>
+</configuration>
+```
+
+###  4.2  vi hdfs-site.xml
+
+ps: 
+
+- 去掉secondNameNode，职责由NameNodeStandBy代替
+- 存储路径要修改，之前完全分布式放在full下，现在full改成ha
+
+```
+<configuration>
+#以下是  一对多，逻辑到物理节点的映射
+		<property>
+		  <name>dfs.nameservices</name>
+		  <value>mycluster</value>
+		</property>
+		<property>
+		  <name>dfs.ha.namenodes.mycluster</name>
+		  <value>nn1,nn2</value>
+		</property>
+		<property>
+		  <name>dfs.namenode.rpc-address.mycluster.nn1</name>
+		  <value>node1:8020</value>
+		</property>
+		<property>
+		  <name>dfs.namenode.rpc-address.mycluster.nn2</name>
+		  <value>node2:8020</value>
+		</property>
+		<property>
+		  <name>dfs.namenode.http-address.mycluster.nn1</name>
+		  <value>node1:50070</value>
+		</property>
+		<property>
+		  <name>dfs.namenode.http-address.mycluster.nn2</name>
+		  <value>node2:50070</value>
+		</property>
+
+		#以下是JN在哪里启动，数据存那个磁盘
+		<property>
+		  <name>dfs.namenode.shared.edits.dir</name>
+		  <value>qjournal://node1:8485;node2:8485;node3:8485/mycluster</value>
+		</property>
+		# 修改存储路径full为ha
+		<property>
+		  <name>dfs.journalnode.edits.dir</name>
+		  <value>/var/bigdata/hadoop/ha/dfs/jn</value>
+		</property>
+		
+		#HA角色切换的代理类和实现方法，我们用的ssh免密
+		<property>
+		  <name>dfs.client.failover.proxy.provider.mycluster</name>
+		  <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+		</property>
+		<property>
+		  <name>dfs.ha.fencing.methods</name>
+		  <value>sshfence</value>
+		</property>
+		<property>
+		  <name>dfs.ha.fencing.ssh.private-key-files</name>
+		  <value>/root/.ssh/id_dsa</value>
+		</property>
+		
+		#开启自动化： 启动zkfc
+		 <property>
+		   <name>dfs.ha.automatic-failover.enabled</name>
+		   <value>true</value>
+		 </property>
+</configuration>
+```
+
+### 4.3分发配置
+
+```
+scp core-site.xml hdfs-site.xml   node2:`pwd`
+scp core-site.xml hdfs-site.xml   node3:`pwd`
+scp core-site.xml hdfs-site.xml   node4:`pwd`
+```
+
+## 5.初始化hdfs
+
+### 5.1 启动journalnode
+
+```
+#在node1，node2,node3 依次执行
+hadoop-daemon.sh start journalnode
+```
+
+### 5.2 格式化dfs
+
+找一台namenode执行如下命令
+
+```
+#node1中
+hdfs namenode -format
+#此时node1中name目录文件初始化完毕，node2,node3,node4中journalNode相关的jn目录文件也初始化完毕。 
+```
+
+### 5.3 启动这个格式化的NameNode 
+
+5.2格式化的是node1，所以这一步也要启动node1的NameNode，以备另一台同步。
+
+```
+#node1中
+hadoop-daemon.sh start namenode
+```
+
+### 5.4 配置备用NameNode 进行同步 
+
+备用的NameNode在 node2
+
+```
+#node2中
+hdfs namenode -bootstrapStandby
+#此时node2中/var/bigdata/hadoop/ha/dfs/name目录文件初始化完毕
+```
+
+**此时hdfs初始化完成。**
+
+## 6.初始化FailoverController
+
+### 6.1 格式化zk
+
+```
+#node1中执行（只有第一次搭建做）。
+hdfs zkfc  -formatZK
+```
+
+### 6.2 检查zk
+
+```
+#node2,3,4 是zk集群，选一台执行
+zkCli.sh
+#然后查看zk状态
+[zk: localhost:2181(CONNECTED) 0] ls /
+[zookeeper, hadoop-ha]
+[zk: localhost:2181(CONNECTED) 1] ls /hadoop-ha
+[mycluster]
+[zk: localhost:2181(CONNECTED) 2] ls /hadoop-ha/mycluster
+[]
+[zk: localhost:2181(CONNECTED) 3] 
+#可以看到zk里面已经有了hadoop-ha节点 ，但是mycluster里没有数据（namenode1,namenode2）
+```
+
+## 7.启动dfs
+
+```
+#node1
+start-dfs.sh	
+```
+
+执行后，会在所有节点拉起各个组件(在简介-官方架构图中所示)，如下：
+
+```
+[root@node1 current]# start-dfs.sh 
+Starting namenodes on [node1 node2]
+node1: namenode running as process 1640. Stop it first.
+node2: starting namenode, logging to /opt/bigdata/hadoop-2.6.5/logs/hadoop-root-namenode-node2.out
+node2: starting datanode, logging to /opt/bigdata/hadoop-2.6.5/logs/hadoop-root-datanode-node2.out
+node4: starting datanode, logging to /opt/bigdata/hadoop-2.6.5/logs/hadoop-root-datanode-node4.out
+node3: starting datanode, logging to /opt/bigdata/hadoop-2.6.5/logs/hadoop-root-datanode-node3.out
+Starting journal nodes [node1 node2 node3]
+node1: journalnode running as process 1482. Stop it first.
+node2: journalnode running as process 1766. Stop it first.
+node3: journalnode running as process 1576. Stop it first.
+Starting ZK Failover Controllers on NN hosts [node1 node2]
+node1: starting zkfc, logging to /opt/bigdata/hadoop-2.6.5/logs/hadoop-root-zkfc-node1.out
+node2: starting zkfc, logging to /opt/bigdata/hadoop-2.6.5/logs/hadoop-root-zkfc-node2.out
+```
+
+在zk中，也有了主备nameNode的分布式锁节点:
+
+```
+#node4
+[zk: localhost:2181(CONNECTED) 3] ls /hadoop-ha/mycluster
+[ActiveBreadCrumb, ActiveStandbyElectorLock]
+
+#注意，可以看到现在是node1拿到了锁 
+[zk: localhost:2181(CONNECTED) 8] get /hadoop-ha/mycluster/ActiveStandbyElectorLock
+
+	myclusternn1node1 �>(�>
+cZxid = 0x10000000a
+ctime = Wed Apr 13 02:15:38 CST 2022
+mZxid = 0x10000000a
+mtime = Wed Apr 13 02:15:38 CST 2022
+pZxid = 0x10000000a
+cversion = 0
+dataVersion = 0
+aclVersion = 0
+ephemeralOwner = 0x3801ec3f1470002
+dataLength = 29
+numChildren = 0
 
 
-进度 01：17：51
+```
+
+jourlnalNode中也开始同步数据如:
+
+```
+[root@node3 current]# pwd
+/var/bigdata/hadoop/ha/dfs/jn/mycluster/current
+[root@node3 current]# ll
+total 1052
+-rw-r--r--. 1 root root       8 Apr 13 02:21 committed-txid
+-rw-r--r--. 1 root root      42 Apr 13 02:17 edits_0000000000000000001-0000000000000000002
+-rw-r--r--. 1 root root      42 Apr 13 02:19 edits_0000000000000000003-0000000000000000004
+-rw-r--r--. 1 root root      42 Apr 13 02:21 edits_0000000000000000005-0000000000000000006
+-rw-r--r--. 1 root root 1048576 Apr 13 02:21 edits_inprogress_0000000000000000007
+-rw-r--r--. 1 root root       2 Apr 13 02:15 last-promised-epoch
+-rw-r--r--. 1 root root       2 Apr 13 02:15 last-writer-epoch
+drwxr-xr-x. 2 root root       6 Apr 13 01:50 paxos
+-rw-r--r--. 1 root root     154 Apr 13 01:50 VERSION
+
+```
+
+访问node1的dfs 控制台页面可以看到状态为active http://127.0.0.1:50070/dfshealth.html#tab-overview（我这里本机50070端口转发到node1虚拟机的50070端口）
+
+如果访问node1的dfs 控制台页面则可以看到状态为standby。
+
+![hadoop-ha-node1-dashboard](https://s2.loli.net/2022/04/13/koZglVL6PEUsfi4.png)
+
+## 8.验证HA 高可用性
