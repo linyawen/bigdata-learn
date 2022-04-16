@@ -365,4 +365,109 @@ drwxr-xr-x. 2 root root       6 Apr 13 01:50 paxos
 
 ![hadoop-ha-node1-dashboard](https://s2.loli.net/2022/04/13/koZglVL6PEUsfi4.png)
 
-## 8.验证HA 高可用性
+## 8.重启dfs集群
+
+插曲：如果你测试的虚拟机集群重新开机后，怎么启动整个集群呢：
+
+### 1.启动zk集群
+
+```
+#node2,3,4
+zkServer.sh start
+```
+
+```
+[zk: localhost:2181(CONNECTED) 8] ls  /hadoop-ha/mycluster 
+[ActiveBreadCrumb]
+```
+
+### 2.启动journalnode
+
+```
+#在node1，node2,node3 依次执行
+hadoop-daemon.sh start journalnode
+```
+
+### 3.启动dfs
+
+```
+#node1
+start-dfs.sh	
+```
+
+## 9.验证HA 高可用性
+
+### 9.1 模拟主NameNode 挂掉
+
+可以看到当前node1的nameNode为主
+
+```
+#node2,3,4随便一台
+zkCli.sh
+[zk: localhost:2181(CONNECTED) 11] get /hadoop-ha/mycluster/ActiveStandbyElectorLock
+
+	myclusternn1node1 �>(�>
+cZxid = 0x200000007
+
+```
+
+kill -9 掉node1的nameNode进程，再检查一次zk，看到node2的nameNode抢到了主。（此时是zkfc监控到了变化，主动进行切换）
+
+```
+#node2,3,4
+[zk: localhost:2181(CONNECTED) 12] get /hadoop-ha/mycluster/ActiveStandbyElectorLock
+
+	myclusternn2node2 �>(�>
+
+```
+
+ 我这本机50072端口映射到 虚拟机node2的50070端口，所以这么访问node2的hdfs管理后台![hadoop-ha-node2-dashboard](https://s2.loli.net/2022/04/17/YsmWhDPzZ27xd9O.png) 
+
+ps：试验完记得把node1的nameNode重启回来
+
+```
+#node1中执行启动命令，此时 node1为从。
+hadoop-daemon.sh start namenode
+```
+
+### 9.2 模拟zkfc挂掉
+
+类似的kill  抢锁进程 FailoverController (即zkfc)，检查zk，发现主从切换（此时是利用了zk的临时节点的原理）。
+
+恢复zkfc
+
+```
+hadoop-daemon.sh start zkfc
+```
+
+### 9.3 模拟网络不通
+
+关掉网卡
+
+```
+#node2 目前是主，再node2处理
+#我的网卡名是 enp0s3，具体可以ifconfig命令查，一有的是 eth0
+ifconfig enp0s3 down
+```
+
+观察zk，锁已经被node1抢走
+
+```
+#node3，4
+[zk: localhost:2181(CONNECTED) 1] get /hadoop-ha/mycluster/ActiveStandbyElectorLock
+
+	myclusternn1node1 �>(�>
+```
+
+但是!!! node1 居然还没有切成主！！！因为node1上的zkfc尝试着ssh去探测node2，发现网络不通所以没有切，避免脑裂的发生。（此时node1没法通过ssh把node2置为从）
+
+![hadoop-ha-node1-dashboard3](https://s2.loli.net/2022/04/17/Z8goaIQnyJpTqVS.png)
+
+重启网卡,看到node1 顺利切成了主，node2切成从
+
+```
+#node2
+ifconfig enp0s3 up
+```
+
+![hadoop-ha-node1-dashboard4](https://s2.loli.net/2022/04/17/wyWCPhmSkN2J3E9.png)
