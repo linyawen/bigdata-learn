@@ -395,7 +395,9 @@ hadoop-daemon.sh start journalnode
 start-dfs.sh	
 ```
 
-## 9.验证HA 高可用性
+## 9. 故障模拟
+
+模拟各种故障，验证HA 高可用性
 
 ### 9.1 模拟主NameNode 挂掉
 
