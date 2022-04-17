@@ -198,6 +198,12 @@ hdfs dfsadmin -refreshUserToGroupsMappings
 
 ### 4.3 管理指令 hdfs dfsadmin
 
-
-
 # 四.java-api-实操
+
+略，一般很少会用java api去操作 hdfs。
+
+hadoop mapreduce框架底层封装了很多 hdfs文件操作，屏蔽了hdfs的复杂性，
+
+暴露给发人员的只剩下map，reduce接口。通俗得说，hadoop底层处理了文件多个切块的按行扫描过程，每一行触发一个map 方法回调，由开发人员来实现这个回调的具体计算业务 。
+
+类似的还有reduce聚合回调。
