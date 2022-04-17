@@ -1,4 +1,4 @@
-# hdfs企业级权限管理
+# 一.hdfs企业级权限管理
 
 hdfs是一个大数据分布式文件系统
 类unix、linux，有用户概念
@@ -17,7 +17,7 @@ hdfs是一个大数据分布式文件系统
 
 ​	hdfs的权限是自己控制的 来自于hdfs的超级用户
 
-# cli
+# 二.cli-测试
 
 ## 1. 创建home目录
 
@@ -45,7 +45,7 @@ hdfs dfs -put data.txt
 hdfs dfs -put data.txt /
 ```
 
-# 实操
+# 三.cli-实操
 
 模拟企业真实场景，用普通用户来部署、使用hdfs。
 
@@ -121,8 +121,6 @@ ssh-copy-id -i id_dsa node4
 #此时可以测试下免密
 ssh node2
 
-
-
 ```
 
 ```
@@ -193,9 +191,13 @@ useradd good
 groupadd ooxx
 usermod -a -G ooxx good
 #在用namenode进程管理员执行，把linux组信息刷到hdfs里
+#只有这一步刷新组信息是必须在NameNode上执行的。
 hdfs dfsadmin -refreshUserToGroupsMappings
+#然后在其他node上去操作，hdfs只会识别node上的用户，不会识别组，因为刚才的步骤中 组信息已经刷到hdfs了。
 ```
 
-
-
 ### 4.3 管理指令 hdfs dfsadmin
+
+
+
+# 四.java-api-实操
