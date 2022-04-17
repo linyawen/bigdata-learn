@@ -36,7 +36,7 @@ sh stop-dfs.sh
 | node3 | 192.168.130.6 |
 | node4 | 192.168.130.7 |
 
-## node1~node4:
+## 设置hosts域名映射:
 
 四台机器的hosts文件都配上域名映射,如下:
 
