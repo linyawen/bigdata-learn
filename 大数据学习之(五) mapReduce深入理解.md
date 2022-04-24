@@ -2,9 +2,9 @@
 
 
 
-# 一、mapreduce 执行流程分析
+# 一、mapreduce 计算模型分析
 
-map 和reduce的原理，把下面两张图看明白了，就基本理解了。
+map 和reduce的原理，把下面两张图看明白就基本理解了。
 
 ps: 这两张图没有画出 **combiner**，combiner基本等同于reduce，只是执行的地方/时机不同。
 
