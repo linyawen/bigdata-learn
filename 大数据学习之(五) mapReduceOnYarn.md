@@ -187,7 +187,32 @@ numChildren = 0
 
 # 四、在yarn上运行mapreduce
 
-## 1.官方案例 wordCount
+实战：MR ON YARN 的运行方式：
+
+```
+#创建输入数据目录
+hdfs dfs -mkdir -p   /data/wc/input 
+#上传文件
+hdfs dfs -D dfs.blocksize=1048576  -put data.txt  /data/wc/input
+#执行wordcount demo
+cd  $HADOOP_HOME
+cd share/hadoop/mapreduce
+hadoop jar  hadoop-mapreduce-examples-2.6.5.jar   wordcount   /data/wc/input   /data/wc/output
+
+#查看应用执行结果的两种方式
+1)webui:
+2)cli:
+#cli方式查看
+hdfs dfs -ls /data/wc/output
+-rw-r--r--   2 root supergroup          0 2019-06-22 11:37 /data/wc/output/_SUCCESS  //标志成功的文件
+-rw-r--r--   2 root supergroup     788922 2019-06-22 11:37 /data/wc/output/part-r-00000  //数据文件
+#reduce的输出文件part-r-00000，如果没有reduce只有map，那文件名如part-m-00000
+#两种文件r/m :  map+reduce   r   / map  m
+#查看结果文件内容
+hdfs dfs -cat  /data/wc/output/part-r-00000
+#保存结果到本地磁盘
+hdfs dfs -get  /data/wc/output/part-r-00000  ./
+```
 
  
 
