@@ -226,7 +226,42 @@ hdfs dfs -cat  /data/wc/output/part-r-00000
 hdfs dfs -get  /data/wc/output/part-r-00000  ./
 ```
 
-# 五、故障记录
+
+
+# 五、在idea 开发mapreduce
+
+1. 可以拿官方wordCount demo来进行改造。
+
+2. maven引入 跟集群一致的hadoop-client。
+
+3. 把集群的core-site.xml, hdfs-site.xml,mapred-site.xml,yarn-site.xml下载到本地 resources。
+
+4. 初始化job：
+
+   1.  指定本应用的数据来源，输出源，一般是dfs目录。
+   2. 指定读取本地配置 resources里面的xml. 
+   3. 指定MapperClass,ReducerClass。
+   4. 指定mapper排序逻辑，优化效率。注意：字典序，数值序。
+
+5. 实现MapperClass,ReducerClass业务逻辑.
+
+   注意大数据场景下程序编写的优化.
+
+   比如:循环 new 变量,可能会被大量调用gc .
+
+   解决:写在类静态变量,通过hadoop自带的类型会序列化,不会有引用问题.
+
+
+# 六、配置优先级
+
+注意:  有几个地方都存在 xxxx-site.xml 配置,注意优先级如下降序:
+
+1. maven项目中 java 代码设置的配置值.
+2. maven项目中resources的配置.
+3. 服务器$HADOOP_HOME/etc里的配置.
+4. hadoop框架.jar包内置的默认配置.(一般不用)
+
+# 七、故障记录
 
 ## 1.集群里缺失节点。
 
