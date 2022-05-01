@@ -122,6 +122,19 @@ scp mapred-site.xml yarn-site.xml  node4:`pwd`
 
 ### 启动yarn
 
+#### 0.前提：启动好ZK, JN,HDFS
+
+```
+#node2,3,4
+zkServer.sh start
+
+#在node1，node2,node3 依次执行
+hadoop-daemon.sh start journalnode
+
+#node1
+start-dfs.sh
+```
+
 #### 1.启动NodeManager
 
 **问题**：发现resourceManager并没有按照我们的配置在node3，4启动，而且也没有如同log显示那样启动在node1上。
@@ -195,8 +208,7 @@ hdfs dfs -mkdir -p   /data/wc/input
 #上传文件
 hdfs dfs -D dfs.blocksize=1048576  -put data.txt  /data/wc/input
 #执行wordcount demo
-cd  $HADOOP_HOME
-cd share/hadoop/mapreduce
+cd  $HADOOP_HOME/share/hadoop/mapreduce
 hadoop jar  hadoop-mapreduce-examples-2.6.5.jar   wordcount   /data/wc/input   /data/wc/output
 
 #查看应用执行结果的两种方式
@@ -214,7 +226,47 @@ hdfs dfs -cat  /data/wc/output/part-r-00000
 hdfs dfs -get  /data/wc/output/part-r-00000  ./
 ```
 
- 
+# 五、故障记录
 
+## 1.集群里缺失节点。
 
+### 问题描述
+
+提交几次mapReduce以后，yarn里一台少了一台Node4，重启集群后node4有出现在 hdfs里，但是yarn里还是没有。
+
+### 分析
+
+hadoop-root-datanode-node4.log 显示异常如下：
+
+```
+ org.apache.hadoop.hdfs.server.datanode.DataNode: RECEIVED SIGNAL 15: S
+```
+
+**应该是dataNode被集群杀掉了。**
+
+偶然观察到node4 磁盘只剩下500MB（测试的虚拟机空间很小）。
+
+尝试删掉点东西，空间有800MB了，刷新下yarn，节点出现了。。。
+
+观察到 yarn-root-nodemanager-node4.log 里有磁盘相关的信息  Disk(s) turned good
+
+```
+2022-05-01 19:24:18,290 INFO org.apache.hadoop.yarn.server.nodemanager.DirectoryCollection: Directory /tmp/hadoop-root/nm-local-dir passed disk check, adding to list of valid directories.
+2022-05-01 19:24:18,290 INFO org.apache.hadoop.yarn.server.nodemanager.DirectoryCollection: Directory /opt/bigdata/hadoop-2.6.5/logs/userlogs passed disk check, adding to list of valid directories.
+2022-05-01 19:24:18,290 INFO org.apache.hadoop.yarn.server.nodemanager.LocalDirsHandlerService: Disk(s) turned good: 1/1 local-dirs are good: /tmp/hadoop-root/nm-local-dir; 1/1 log-dirs are good: /opt/bigdata/hadoop-2.6.5/logs/userlogs
+```
+
+应该是我腾出磁盘盘空间后，NodeManager健康检查变成通过了，就加回集群里了，那应该前面会有磁盘检查有关的错误日志，果然找到如下:
+
+```
+2022-05-01 19:18:18,166 WARN org.apache.hadoop.yarn.server.nodemanager.DirectoryCollection: Directory /tmp/hadoop-root/nm-local-dir error, used space above threshold of 90.0%, removing from list of valid directories
+2022-05-01 19:18:18,166 WARN org.apache.hadoop.yarn.server.nodemanager.DirectoryCollection: Directory /opt/bigdata/hadoop-2.6.5/logs/userlogs error, used space above threshold of 90.0%, removing from list of valid directories
+2022-05-01 19:18:18,166 INFO org.apache.hadoop.yarn.server.nodemanager.LocalDirsHandlerService: Disk(s) failed: 1/1 local-dirs are bad: /tmp/hadoop-root/nm-local-dir; 1/1 log-dirs are bad: /opt/bigdata/hadoop-2.6.5/logs/userlogs
+2022-05-01 19:18:18,167 ERROR org.apache.hadoop.yarn.server.nodemanager.LocalDirsHandlerService: Most of the disks failed. 1/1 local-dirs are bad: /tmp/hadoop-root/nm-local-dir; 1/1 log-dirs are bad: /opt/bigdata/hadoop-2.6.5/logs/userlogs
+
+```
+
+### **结论**
+
+ 保持机器的磁盘，内存，cpu 资源足够，如果突然机器被提出集群，优先考虑健康导致。
 
