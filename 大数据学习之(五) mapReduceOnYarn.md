@@ -253,8 +253,37 @@ hdfs dfs -get  /data/wc/output/part-r-00000  ./
 
    2. 最好用combiner把聚合计算前置在mapper处理,提升效率.
 
-   
+6. 打包jar,上传到集群通过hadoop jar  ooxx.jar  ooxx  in out 
 
+**ps:  还有其他的MR提交方式,比如:**
+	-- 1，开发-> jar  -> 上传到集群中的某一个节点 -> hadoop jar  ooxx.jar  ooxx  in out
+	2，嵌入【linux，windows】（非hadoop jar）的集群方式  on yarn
+		集群：M、R
+
+```
+client -> RM -> AppMaster
+		mapreduce.framework.name -> yarn   //决定了集群运行
+		conf.set("mapreduce.app-submission.cross-platform","true");
+		job.setJar("C:\\Users\\Administrator\\IdeaProjects\\msbhadoop\\target\\hadoop-hdfs-1.0-0.1.jar");
+```
+
+​			//^推送jar包到hdfs
+
+​	3，local，单机  自测
+
+```
+mapreduce.framework.name -> local
+conf.set("mapreduce.app-submission.cross-platform","true"); //windows上必须配
+1，在win的系统中部署我们的hadoop：
+C:\usr\hadoop-2.6.5\hadoop-2.6.5
+2，在我给你的资料中\hadoop-install\soft\bin  文件覆盖到 你部署的bin目录下
+还要将hadoop.dll  复制到  c:\windwos\system32\
+3，设置环境变量：HADOOP_HOME  C:\usr\hadoop-2.6.5\hadoop-2.6.5 
+```
+
+	IDE -> 集成开发： 
+	hadoop最好的平台是linux
+	部署hadoop，bin
 # 六、配置优先级
 
 注意:  有几个地方都存在 xxxx-site.xml 配置,注意优先级如下降序:
