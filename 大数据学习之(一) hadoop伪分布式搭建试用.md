@@ -56,6 +56,8 @@ systemctl disable firewalld
 
 setenforce 0
 sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/sysconfig/selinux
+#注意！！！在centos7下 还要同样的改这个文件
+#/etc/selinux/config
 
 ```
 

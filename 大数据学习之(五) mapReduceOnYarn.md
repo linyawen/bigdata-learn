@@ -253,7 +253,7 @@ hdfs dfs -get  /data/wc/output/part-r-00000  ./
 
    2. 最好用combiner把聚合计算前置在mapper处理,提升效率.
 
-6. 打包jar,上传到集群通过hadoop jar  ooxx.jar  ooxx  in out 
+6. 打包jar,上传到集群通过hadoop jar  ooxx.jar  ooxx  in out
 
 **ps:  还有其他的MR提交方式,比如:**
 	-- 1，开发-> jar  -> 上传到集群中的某一个节点 -> hadoop jar  ooxx.jar  ooxx  in out
@@ -267,13 +267,18 @@ client -> RM -> AppMaster
 		job.setJar("C:\\Users\\Administrator\\IdeaProjects\\msbhadoop\\target\\hadoop-hdfs-1.0-0.1.jar");
 ```
 
-​			//^推送jar包到hdfs
+​			//推送jar包到hdfs
 
-​	3，local，单机  自测
+​	3，local，**单机debug**
 
-```
-mapreduce.framework.name -> local
+```java
+//Configuration 参数修改
+//平台改成log
+conf.set("mapreduce.framework.name","local")
+//异构系统
 conf.set("mapreduce.app-submission.cross-platform","true"); //windows上必须配
+//可选，文件系统也改成本地，不读hdfs，便于造数据 
+
 1，在win的系统中部署我们的hadoop：
 C:\usr\hadoop-2.6.5\hadoop-2.6.5
 2，在我给你的资料中\hadoop-install\soft\bin  文件覆盖到 你部署的bin目录下
