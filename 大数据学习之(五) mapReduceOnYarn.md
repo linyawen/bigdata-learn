@@ -54,7 +54,7 @@ ps:
 
 hdfs等所有都用root启动。
 
-```
+```shell
 cd /opt/bigdata/hadoop-2.6.5/etc/hadoop
 cp mapred-site.xml.template mapred-site.xml
 vi mapred-site.xml
