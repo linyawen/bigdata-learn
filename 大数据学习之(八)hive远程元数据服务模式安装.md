@@ -1,6 +1,6 @@
 
 
-
+ 
 
 # 一、hive远程元数据服务模式安装：
 
@@ -8,14 +8,14 @@
 
 
 
-| host  | NN   | NN   | JNN  | SNN  | DN   | FC   | ZK   | RM   | NM   | H-cLI | h-sVR |
-| ----- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ----- | ----- |
-| node1 | *    |      | *    |      |      | *    |      |      |      | *     |       |
-| node2 |      | *    | *    | *    | *    | *    | *    |      | *    |       | 1     |
-| node3 |      |      | *    |      | *    |      | *    | *    | *    |       |       |
-| node4 |      |      |      |      | *    |      | *    | *    | *    | 1     |       |
+| host  | NN   | NN   | JNN  | SNN  | DN   | FC   | ZK   | RM   | NM   | H-cLI | h-Mt-sV |
+| ----- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ----- | ------- |
+| node1 | *    |      | *    |      |      | *    |      |      |      | *     |         |
+| node2 |      | *    | *    | *    | *    | *    | *    |      | *    |       | 1       |
+| node3 |      |      | *    |      | *    |      | *    | *    | *    |       |         |
+| node4 |      |      |      |      | *    |      | *    | *    | *    | 1     |         |
 
-## 2、从node1上远程拷贝hive的安装包到Node3和node4
+## 2、从node1上远程拷贝hive的安装包到Node2和node4
 
 ```
 scp -r hive-2.3.7  node2:`pwd`
@@ -32,7 +32,7 @@ scp -r hive-2.3.7  node4:`pwd`
 	</property>
 	<property>
 		<name>javax.jdo.option.ConnectionURL</name>
-		<value>jdbc:mysql://node01:3306/hive_remote?createDatabaseIfNotExist=true</value>
+		<value>jdbc:mysql://node3:3306/hive_remote?createDatabaseIfNotExist=true</value>
 	</property>
 	<property>
 		<name>javax.jdo.option.ConnectionDriverName</name>
@@ -57,7 +57,7 @@ scp -r hive-2.3.7  node4:`pwd`
 	</property>
 	<property>
 		<name>hive.metastore.uris</name>
-		<value>thrift://node03:9083</value>
+		<value>thrift://node2:9083</value>
 	</property>
 ```
 

@@ -1,0 +1,14 @@
+webUI: hue/
+
+ cdh,ambari ,集群管理，批量安装, 还有一个hdp。
+ CDH是重点。
+
+ hive on spark --- shar k
+ spark sql on hive --工作重点
+
+
+hive索引 增量，全量。
+56:00
+
+Cloudera Manager
+https://www.csdn.net/tags/Ntjacg1sNTgwNzktYmxvZwO0O0OO0O0O.html
