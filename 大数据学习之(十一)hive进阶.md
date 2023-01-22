@@ -105,9 +105,22 @@ drwxr-xr-x   - root supergroup          0 2022-06-19 23:59 /user/hive_remote/war
 
 # Hive视图
 
+简化查询语句
+
 # Hive索引
 
+比较少用，每次数据增加后，需要手工构建索引。
+
+# Hive的抓取策略
+
+简单的操作不再需要转换成MapReduce，例如
+
+- select 仅支持本表字段
+- where仅对本表字段做条件过滤
+
 # Hive优化
+
+## （一）hadoop mr 优化。
 
 类似mysql优化，mysql优化主要是理解B+树，磁盘IO。
 
@@ -115,4 +128,121 @@ hive底层是把sql转换成hadoop执行，所以要从Hadoop的执行过程来�
 
 **思考**：hive支持把计算引擎切换成 spark，那是不是同样的语句的优化方式就变了？
 
+- **Hive执行计划**
+
+- ## MR的splitsize优化，
+
+- ## 合理控制 map，reduce 在每台机器的数量。
+
+- Hive join
+  Hive 在多个表的join操作时尽可能多的使用相同的连接键，这样在转换MR任务时会转换成少的MR的任务。
+
+- 手动Map join:在map端完成join操作。
+
+- Map-Side聚合，Hive的某些SQL操作可以实现map端的聚合，类似于MR的combine操作
+
+## （二）jvm优化
+
+## （三）hdfs空间优化
+
+### 空间优化 ：
+
+- ### 文件压缩格式 snappy
+
+- 合并小文件、
+
+## （四） 存储方式优化
+
+选择合适的文件格式，text一般用的比较少，一般企业里用**列式存储**等。
+
+~~行式存储:textfile sequencefile~~
+
+**列式存储**: orc ,**parquet**，重点 parquet,面向分析型业务的烈士存储格式。
+
+优点:   
+
+- 列式更省空间。
+
+- 减小IO量。
+
+- **spark能直接读取 parquet文件，**不需要经过转换。
+
+-  **orc优点**： 可以压缩到 textfile接近5，6倍，但是
+
+缺点：
+
+- 不能直接看hdfs里的文件了，可能导致查询变慢，具体要试验对比。orc压缩率很高。
+- 加载到表后不能再插入数据了，所以适合历史数据
+
+
+## （五）高可用
+
+keepalive或zookeeper，一般共zk
+
+metaStore不用做高可用，mysql集群要做高可用，hive server2也要做高可用。
+
+## （六）Hive并行模式
+
+在SQL语句足够复杂的情况下，可能在一个SQL语句中包含多个子查询语句，且多个子查询语句之间没有任何依赖关系，此时，可以Hive运行的并行度
+
+```sql
+--设置Hive SQL的并行度
+set hive.exec.parallel=true;
+```
+
+		注意：Hive的并行度并不是无限增加的，在一次SQL计算中，可以通过以下参数来设置并行的job的个数
+
+```sql
+--设置一次SQL计算允许并行执行的job个数的最大值
+set hive.exec.parallel.thread.number
+```
+
+
+
+## （七）Hive严格模式
+
+Hive中为了提高SQL语句的执行效率，可以设置严格模式，充分利用Hive的某些特点。
+
+```sql
+-- 设置Hive的严格模式
+set hive.mapred.mode=strict;
+```
+
+注意：当设置严格模式之后，会有如下限制：
+
+​				（1）对于分区表，必须添加where对于分区字段的条件过滤
+
+​				（2）order by语句必须包含limit输出限制
+
+​				（3）限制执行笛卡尔积的查询
+
+## （八）Hive排序
+
+​		在编写SQL语句的过程中，很多情况下需要对数据进行排序操作，Hive中支持多种排序操作适合不同的应用场景。
+
+​		1、Order By - 对于查询结果做全排序，只允许有一个reduce处理
+​			（当数据量较大时，应慎用。严格模式下，必须结合limit来使用）
+​		2、Sort By - 对于单个reduce的数据进行排序
+​		3、Distribute By - 分区排序，经常和Sort By结合使用
+​		4、Cluster By - 相当于 Sort By + Distribute By
+​			（Cluster By不能通过asc、desc的方式指定排序规则；
+​				可通过 distribute by column sort by column asc|desc 的方式）
+
+#  hiveserver2：
+
+企业多用hiveserver2，**优点**：
+
+1. #### 应用端不需要部署hadoop，hive cli。
+
+2. 不用直接将hdfs 和 metastore暴露给用户用户。
+
+3. 可以做高可用，解决应用端并发和负载问题。
+
+4. jdbc跨语言。
+
+
+
+ 
+
 # Hive权限管理
+
