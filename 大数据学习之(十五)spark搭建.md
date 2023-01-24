@@ -211,6 +211,7 @@ node4
 cd conf/
 mv spark-env.sh.template spark-env.sh
 vi spark-env.sh
+export HADOOP_CONF_DIR=/opt/bigdata/hadoop-2.6.5/etc/hadoop
 export SPARK_MASTER_HOST=node1
 export SPARK_MASTER_PORT=7077
 export SPARK_MASTER_WEBUI_PORT=8080
@@ -225,7 +226,7 @@ scp -r  spark-2.3.4-bin-hadoop2.6/ node4:`pwd`
 
 ```
 
-## 启动Hadoop集群
+## 启动-Hadoop集群
 
 ```shell
 #node2,3,4
@@ -247,10 +248,10 @@ http://192.168.56.103:50070/dfshealth.html#tab-overview
 http://192.168.56.104:50070/dfshealth.html#tab-overview
 ```
 
-## 启动spark集群
+## 启动-spark集群
 
 ```shell
-#node执行
+#node1执行 start-all.sh ，启动资源管理层master、workder
 [root@node1 bigdata]# cd spark-2.3.4-bin-hadoop2.6/sbin/
 [root@node1 sbin]# ./start-all.sh
 #此时在node1有master进程，node2，3，4各有一个worker进程
@@ -269,7 +270,7 @@ http://192.168.56.104:50070/dfshealth.html#tab-overview
 
 ```
 
-## cli连接集群
+## cli spark-shell连接集群
 
 ```
 #这个master信息在 sparkWebUI 上有。
@@ -298,4 +299,138 @@ scala> sc.textFile("hdfs://mycluster/sparktest/data.txt").flatMap(_.split(" ")).
 (spark,1)
 (hadoop,1)
 ```
+
+## (可选)Master高可用
+
+```shell
+#node1 填入zk信息，复制到node2，3，4
+vi spark-defaults.conf
+
+#修改master信息，node1填node1，node2填node2
+#跟之前hadoop HA 填clusterId不同
+vi spark-env.sh
+export SPARK_MASTER_HOST=node1
+
+```
+
+## (可选)历史记录
+
+### 开启计算层端写日志的配置
+
+```shell
+#node1
+vi spark-defaults.conf
+spark.eventLog.enabled true
+spark.eventLog.dir hdfs://mycluster/spark_log
+spark.history.fs.logDirectory  hdfs://mycluster/spark_log
+```
+
+```shell
+#从node1分发配置到node2,3,4
+scp spark-defaults.conf node2:`pwd`
+scp spark-defaults.conf node3:`pwd`
+scp spark-defaults.conf node4:`pwd`
+```
+
+### 重启spark
+
+```shell
+[root@node1 sbin]# ./stop-all.sh
+[root@node1 sbin]# ./start-all.sh
+```
+
+### 启动-日志服务WEBUI
+
+```shell
+#node4,或者其他
+./start-history-server.sh
+```
+
+访问URL 验证: http://node4:18080/
+
+## spark-submit提交jar包
+
+尝试用spark-submit提交spark安装包自带的的jar包，位于example里
+
+代码见https://github.com/apache/spark/blob/master/examples/src/main/scala/org/apache/spark/examples/SparkPi.scala
+
+```shell
+#node1
+cd /opt/bigdata/spark-2.3.4-bin-hadoop2.6/examples/jars
+#指定master，class ，jar包，还有给应用传入的参数，即可
+#注意集群cpu，内存是否有空闲，可能需要先停掉其他的cli
+../../bin/spark-submit  \
+--master spark://node1:7077   \
+--class org.apache.spark.examples.SparkPi \
+./spark-examples_2.11-2.3.4.jar    10;
+```
+
+编写通用脚本
+
+```shell
+   #node1 
+   #本脚本提交的任务，申请6核心，每个executor 1核，所以一共6个executor,且每个内存512m
+   vi submit.sh
+   
+    class=$1
+    jar=$2
+    $SPARK_HOME/bin/spark-submit   \
+    --master spark://node1:7077 \
+    --total-executor-cores 6 \
+    --executor-cores 1 \
+    --executor-memory 512m \
+    --class $class  \
+    $jar \
+    1000
+
+```
+
+```shell
+#提交
+. submit.sh   'org.apache.spark.examples.SparkPi'  "$SPARK_HOME/examples/jars/spark-examples_2.11-2.3.4.jar"
+```
+
+## 调度参数
+
+```
+--deploy-mode cluster 
+1. driver不会再 cli进程执行，会在集群里执行，此时 sparkWebUI会出现Running Drivers,Completed Drivers。
+2. print信息也不会打印在 spark-shell，当然生产一般也不用print。
+3. 此时 spark shell退出，不会影响driver，它会继续运行。
+
+--driver-memory 默认 1024m
+注意这个指标的配置：
+1. driver 有能力拉取计算结果回自己的jvm。
+2. executor jvm中会存储中间计算过程的数据的元数据。
+例如：小文件很多，分析加载时，元素据太多导致driver jvm溢出。
+
+--executor-memory 默认 1024m
+
+--executor-cores NUM 
+1.yarn: 默认1核心。
+2.standalone: 所在节点所有核心都分配给该executor。
+
+--num-executors NUM
+
+
+#其他参数如
+只有cluster deploy mode可用的参数：
+只有 spark standalone or mesos with cluster deploy mode only:
+Spark standalone and mesos only:
+--total-executor-cores 
+#此时每个executor平均申请核心数目
+
+Spark standalone and yarn only:
+
+Yarn only:
+
+
+
+```
+
+
+
+
+
+
 
