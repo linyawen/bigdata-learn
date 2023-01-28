@@ -284,22 +284,6 @@ http://192.168.56.104:50070/dfshealth.html#tab-overview
 
 点进去能看到每个worker默认都尽量榨干cpu，内存。
 
-测试分析hdfs里的文件
-
-```
-#hdfs搭建了HA，所以要写集群id：mycluster，不能写具体的node1/node2
-scala> sc.textFile("hdfs://mycluster/sparktest/data.txt").flatMap(_.split(" ")).map((_,1)).reduceByKey((_+_)).foreach(println)
-                                                         #发现执行后没结果输出，因为结果输出在集群里，没在cli。
-                                                         #加一个collect()算子，把结果回收到cli进程，即可显示结果
-#而且速度很快，因为刚才的计算结果缓存过了                       
-scala> sc.textFile("hdfs://mycluster/sparktest/data.txt").flatMap(_.split(" ")).map((_,1)).reduceByKey((_+_)).collect.foreach(println)
-
-(hello,3)                                                                
-(bigdata,1)
-(spark,1)
-(hadoop,1)
-```
-
 ## (可选)Master高可用
 
 ```shell
@@ -347,6 +331,28 @@ scp spark-defaults.conf node4:`pwd`
 ```
 
 访问URL 验证: http://node4:18080/
+
+# 四、demo-RDD
+
+## spark-shell
+
+用原始的RDD api分析 hdfs的文件
+
+```
+#hdfs搭建了HA，所以要写集群id：mycluster，不能写具体的node1/node2
+scala> sc.textFile("hdfs://mycluster/sparktest/data.txt").flatMap(_.split(" ")).map((_,1)).reduceByKey((_+_)).foreach(println)
+                                                         #发现执行后没结果输出，因为结果输出在集群里，没在cli。
+                                                         #加一个collect()算子，把结果回收到cli进程，即可显示结果
+#而且速度很快，因为刚才的计算结果缓存过了                       
+scala> sc.textFile("hdfs://mycluster/sparktest/data.txt").flatMap(_.split(" ")).map((_,1)).reduceByKey((_+_)).collect.foreach(println)
+
+(hello,3)                                                                
+(bigdata,1)
+(spark,1)
+(hadoop,1)
+```
+
+
 
 ## spark-submit提交jar包
 
@@ -428,9 +434,32 @@ Yarn only:
 
 ```
 
+## Expamples
 
+```
+./bin/run-example SparkPi
+```
 
+# 四、DAG有向无环图
 
+https://data-flair.training/blogs/dag-in-apache-spark/
 
+spark  DAG 和hive DAG区别
 
+# 五、DataFrame 、Dataset、SparkSQL
 
+## DataFrame
+
+设计DataFrame的目的就是要让对大型数据集的处理变得更简单，它让开发者可以为分布式的数据集指定一个模式，进行更高层次的抽象。它提供了特定领域内专用的API来处理你的分布式数据
+
+## Dataset
+
+如下面的表格所示，从Spark 2.0开始，Dataset开始具有两种不同类型的API特征：有明确类型的API和无类型的API。从概念上来说，你可以把DataFrame当作一些通用对象Dataset[Row]的集合的一个别名，而一行就是一个通用的无类型的JVM对象。与之形成对比，Dataset就是一些有明确类型定义的JVM对象的集合，通过你在Scala中定义的Case Class或者Java中的Class来指定。
+
+## SparkSQL
+
+### 静态类型与运行时类型安全
+
+> 从SQL的最小约束到Dataset的最严格约束，把静态类型和运行时安全想像成一个图谱。比如，如果你用的是Spark SQL的查询语句，要直到运行时你才会发现有语法错误（这样做代价很大），而如果你用的是DataFrame和Dataset，你在编译时就可以捕获错误（这样就节省了开发者的时间和整体代价）。也就是说，当你在DataFrame中调用了API之外的函数时，编译器就可以发现这个错。不过，如果你使用了一个不存在的字段名字，那就要到运行时才能发现错误了。
+>
+> 图谱的另一端是最严格的Dataset。因为Dataset API都是用lambda函数和JVM类型对象表示的，所有不匹配的类型参数都可以在编译时发现。而且在使用Dataset时，你的分析错误也会在编译时被发现，这样就节省了开发者的时间和代价
