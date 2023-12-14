@@ -7,26 +7,4 @@ linux man tee;
 
 =============  todo  =================================
 
-1,跟进findweb安全
-https://docs.qq.com/sheet/DTmJEWGRIdURSdXhO?tab=BB08J2
-
-
-2，茂名区域公众号-支付- 用户中台接入-消息中台进行短信发送。---炳钦
-
-3，福清市第二医院支付平台+公众号
-陈维官- 短信对接。
-
-https 普通短信 https://112.35.10.201:58888/sms/submit
-https 模板短信 https://112.35.10.201:58888/sms/tmpsubmit
-sign：mcoX2qHBn
-ecName：福清市第二医院
-addSerial 为空即可
-apId：fqdeyy
-secretkey:19y5KoCKlL!4E3No
-
-
-4,蚌埠 短信---蔡俊翔
-
-
-
-
+大数据 平台 kylin，里面整合了 spark, hive，kafka,hbase 等，提供一个快速的sql  查询平台。
